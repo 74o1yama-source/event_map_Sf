@@ -505,7 +505,7 @@ window.addEventListener("devicemotion", (event) => {
     Math.abs(acc.z || 0);
 
   // ✅ 歩行っぽい揺れを検知
-  if (total > 20) {
+  if (total > 15) {
     lastMoveTime = Date.now();
 
     if (!isWalking) {
