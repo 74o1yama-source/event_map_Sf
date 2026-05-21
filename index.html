@@ -473,7 +473,7 @@ function fadeOut() {
 
 
 // ==============================
-// 🚫 歩行検知（高精度版）
+// 🚫 歩行中操作禁止（安定版）
 // ==============================
 
 let lastMoveTime = 0;
@@ -481,21 +481,19 @@ let isWalking = false;
 
 const overlay = document.getElementById("walking-overlay");
 
-// ✅ 感度設定（ここ調整ポイント）
-const START_THRESHOLD = 20;   // 静止→歩行（やや厳しめ）
-const STOP_THRESHOLD  = 14;   // 歩行→静止（ゆるめ）
-
-const STOP_TIME = 1500;       // 静止判定時間
-
-// iPhone対応
+// ✅ iPhone対応（初回タップで許可）
 if (typeof DeviceMotionEvent.requestPermission === "function") {
   document.body.addEventListener("click", async () => {
-    try { await DeviceMotionEvent.requestPermission(); }
-    catch(e){}
+    try {
+      const res = await DeviceMotionEvent.requestPermission();
+      console.log("motion permission:", res);
+    } catch (e) {
+      console.log("motion permission denied");
+    }
   }, { once: true });
 }
 
-// ✅ 加速度処理
+// ✅ 加速度検知
 window.addEventListener("devicemotion", (event) => {
 
   const acc = event.accelerationIncludingGravity;
@@ -506,39 +504,39 @@ window.addEventListener("devicemotion", (event) => {
     Math.abs(acc.y || 0) +
     Math.abs(acc.z || 0);
 
-  // ==============================
-  // ▶ 静止 → 歩行（厳しめ）
-  // ==============================
-  if (!isWalking && total > START_THRESHOLD) {
-    isWalking = true;
+  // ✅ 歩行っぽい揺れを検知
+  if (total > 20) {
     lastMoveTime = Date.now();
 
-    overlay.style.display = "flex";
-    setTimeout(() => overlay.style.opacity = "1", 10);
-  }
+    if (!isWalking) {
+      isWalking = true;
 
-  // ==============================
-  // ▶ 歩行中判定（ゆるめに更新）
-  // ==============================
-  if (isWalking && total > STOP_THRESHOLD) {
-    lastMoveTime = Date.now();
+      // フェードイン
+      overlay.style.display = "flex";
+      setTimeout(() => {
+        overlay.style.opacity = "1";
+      }, 10);
+    }
   }
 
 });
 
-// ==============================
-// ▶ 歩行 → 停止 判定
-// ==============================
+// ✅ 停止判定（動き止まったら解除）
 setInterval(() => {
 
-  if (isWalking && (Date.now() - lastMoveTime > STOP_TIME)) {
-    isWalking = false;
+  if (Date.now() - lastMoveTime > 1500) {
 
-    overlay.style.opacity = "0";
+    if (isWalking) {
+      isWalking = false;
 
-    setTimeout(() => {
-      overlay.style.display = "none";
-    }, 300);
+      // フェードアウト
+      overlay.style.opacity = "0";
+
+      setTimeout(() => {
+        overlay.style.display = "none";
+      }, 300);
+    }
+
   }
 
 }, 300);
