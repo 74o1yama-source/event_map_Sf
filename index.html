@@ -473,7 +473,7 @@ function fadeOut() {
 
 
 // ==============================
-// 🚫 歩行検知（最終安定版）
+// 🚫 歩行検知（最終完成版）
 // ==============================
 
 let isWalking = false;
@@ -484,10 +484,11 @@ let accelHistory = [];
 
 const WINDOW_SIZE = 6;
 const START_THRESHOLD = 18;
-const STOP_THRESHOLD  = 8;
+const STOP_THRESHOLD  = 6;   // ←さらに下げる（超重要）
 const STOP_TIME = 1500;
 
 let moveCount = 0;
+let stillCount = 0;
 let lastMoveTime = Date.now();
 
 // ✅ iPhone対応
@@ -498,9 +499,6 @@ if (typeof DeviceMotionEvent.requestPermission === "function") {
   }, { once: true });
 }
 
-// ==============================
-// 加速度検知
-// ==============================
 window.addEventListener("devicemotion", (event) => {
 
   const acc = event.accelerationIncludingGravity;
@@ -520,9 +518,12 @@ window.addEventListener("devicemotion", (event) => {
   const avg =
     accelHistory.reduce((a,b)=>a+b,0) / accelHistory.length;
 
-  // ✅ 歩行開始判定
+  // ============================
+  // ✅ 歩行開始
+  // ============================
   if (avg > START_THRESHOLD) {
     moveCount++;
+    stillCount = 0;
   } else {
     moveCount = Math.max(0, moveCount - 1);
   }
@@ -533,24 +534,32 @@ window.addEventListener("devicemotion", (event) => {
     overlay.style.display = "flex";
     setTimeout(()=>overlay.style.opacity="1",10);
 
-    console.log("🚶 歩行開始");
+    console.log("🚶歩行開始");
   }
 
-  // ✅ 歩行中のみ更新（超重要）
-  if (isWalking && avg > STOP_THRESHOLD) {
-    lastMoveTime = Date.now();
+  // ============================
+  // ✅ 静止カウント（これが効く）
+  // ============================
+  if (isWalking) {
+    if (avg < STOP_THRESHOLD) {
+      stillCount++;
+    } else {
+      stillCount = 0;
+      lastMoveTime = Date.now();
+    }
   }
 
 });
 
 // ==============================
-// 停止判定
+// ✅ 停止判定（ダブル条件）
 // ==============================
 setInterval(() => {
 
   const diff = Date.now() - lastMoveTime;
 
-  if (isWalking && diff > STOP_TIME) {
+  // ✅ 「時間」＋「静止カウント」で判定
+  if (isWalking && diff > STOP_TIME && stillCount > 3) {
 
     isWalking = false;
 
@@ -560,7 +569,7 @@ setInterval(() => {
       overlay.style.display = "none";
     },300);
 
-    console.log("🛑 停止");
+    console.log("🛑停止");
   }
 
 }, 200);
